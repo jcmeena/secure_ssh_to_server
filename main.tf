@@ -5,27 +5,27 @@ data "http" "my_ip" {
 
 
 resource "aws_vpc" "lab_vpc" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.aws_vpc_cidr_block
   enable_dns_hostnames = true
 
-  tags = { Name = "dev-vpc" }
+  tags = { Name = var.tag_name_vpc }
 }
 
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.lab_vpc.id
 
-  tags = { Name = "dev-igw" }
+  tags = { Name = var.tag_name_internet_gw }
 }
 
 
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.lab_vpc.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-east-2a"
+  cidr_block              = var.aws_vpc_public_subnet_cidr_block
+  availability_zone       = var.aws_vpc_az
   map_public_ip_on_launch = true
 
-  tags = { Name = "dev-public-subnet" }
+  tags = { Name = var.tag_name_subnet_public }
 }
 
 resource "aws_route_table" "public_rt" {
@@ -36,7 +36,7 @@ resource "aws_route_table" "public_rt" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = { Name = "dev-public-rt" }
+  tags = { Name = var.tag_name_route_table }
 }
 
 resource "aws_route_table_association" "public_assoc" {
@@ -45,7 +45,7 @@ resource "aws_route_table_association" "public_assoc" {
 }
 
 resource "aws_security_group" "ssh_sg" {
-  name        = "allow_ssh"
+  name        = var.name_security_group
   description = "Only allow SSH from my workstation"
   vpc_id      = aws_vpc.lab_vpc.id
 
@@ -64,24 +64,24 @@ resource "aws_security_group" "ssh_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "dev-ssh-sg" }
+  tags = { Name = var.tag_name_security_group }
 }
 
 
 resource "aws_key_pair" "deployer" {
-  key_name   = "dev-ssh-key"
+  key_name   = var.name_key
   public_key = file("~/.ssh/id_rsa.pub") # Adjust path to your public key if needed
 }
 
 
 
 resource "aws_instance" "web_server" {
-  ami           = "ami-0e5497a77ef21b5ac" # Ubuntu 24.04 LTS AMI in us-east-1
-  instance_type = "t3.micro"             # AWS Free Tier eligible
+  ami           = var.aws_instance_ami
+  instance_type = var.aws_instance_type
 
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.ssh_sg.id]
   key_name               = aws_key_pair.deployer.key_name
 
-  tags = { Name = "dev-ubuntu-vm" }
+  tags = { Name = var.tag_name_aws_instance }
 }
